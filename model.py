@@ -14,13 +14,17 @@ def model_factory(model_name:str, num_classes:int, petrained=True):
                         'mobilenet_v3_large', 'mobilenet_v3_small',
                         'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2',
                         'vit_b_16','vit_b_32',
-                        'swin_t','swin_b', 'swin_v2_t','swin_v2_s']
+                        'swin_t','swin_b', 'swin_v2_t','swin_v2_s',
+                        'custom_ViT_PositionalEncoding']
     
     if not model_name in supported_models:
         raise Exception("Invalid model name {model_name}")
     
-    weights = 'DEFAULT' if petrained else None
-    model = models.get_model(model_name, weights=weights)
+    if model_name == 'custom_ViT_PositionalEncoding':
+        model = ViTWithComplexPositionalEncoding(image_size=224, num_classes=num_classes, dim=512)
+    else:
+        weights = 'DEFAULT' if petrained else None
+        model = models.get_model(model_name, weights=weights)
     
     if 'resnet' in model_name:
         model.fc = nn.Linear(model.fc.in_features, num_classes)
@@ -32,46 +36,6 @@ def model_factory(model_name:str, num_classes:int, petrained=True):
         model.head = nn.Linear(model.head.in_features, num_classes)
 
     return model
-
-
-class PosEncodingBatch(nn.Module):
-    def __init__(self, N: int, M: int, d: int, wi: float = 0.65, wj: float = 0.65):
-        super().__init__()
-        self.N = N
-        self.M = M
-        self.d = d
-        self.numPatches = N * M
-        
-        # Register constants as buffers
-        self.register_buffer('PI', torch.tensor(math.pi))
-        self.register_buffer('wi', torch.tensor(2 * wi * math.pi))
-        self.register_buffer('wj', torch.tensor(2 * wj * math.pi))
-        self.register_buffer('k', torch.tensor(-0.05 * math.sqrt(d / (N * M))))
-        self.register_buffer('delta', torch.tensor(math.pi / 2))
-        
-        # Precompute all frequency and phase values
-        i_indices = torch.arange(N)
-        j_indices = torch.arange(M)
-        
-        # Create grids for i and j
-        i_grid, j_grid = torch.meshgrid(i_indices, j_indices, indexing='ij')
-        
-        # Precompute frequencies and phases for all positions
-        self.freq_i = self.wi * (i_grid/ self.N + 1) * torch.pow(self.d, i_grid / self.numPatches)
-        self.freq_j = self.wj * (j_grid/ self.M + 1) * torch.pow(self.d, j_grid / self.numPatches)
-        
-        self.phase_i = self.PI * (i_grid / self.N + 1)
-        self.phase_j = self.PI * (j_grid / self.M - 1)
-
-    def forward(self, x):
-        # Get precomputed values for the specified position
-        
-        # Calculate the encoding
-        y = (torch.exp(self.k * x) * 
-             torch.sin(self.freq_i.unsqueeze(-1) * x + self.phase_i.unsqueeze(-1)) * 
-             torch.sin(self.freq_j.unsqueeze(-1) * x + self.phase_j.unsqueeze(-1) + self.delta))
-        
-        return y
 
 class ResNetPatchEmbedding(nn.Module):
     def __init__(
@@ -251,7 +215,6 @@ class ResNetPatchEmbeddingWithCLS(nn.Module):
         embeddings = torch.cat([cls_tokens, patch_embeddings], dim=1)
         
         return embeddings, grid_size
-
 
 # Example usage and test
 if __name__ == "__main__":
