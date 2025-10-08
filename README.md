@@ -36,7 +36,7 @@ The table below shows the best results (validation accuracy) obtained for each a
 | ResNet-50 | 89.5% | |
 | ResNet-18 | 86.0% | |
 | ViT-16 | 61.0% | ⚠️ Poor performance |
-
+| ViT-32 | 48.0% | ⚠️ Poor performance |
 
 
 
