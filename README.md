@@ -38,5 +38,8 @@ The table below shows the best results (validation accuracy) obtained for each a
 | ViT-16 | 61.0% | ⚠️ Poor performance |
 | ViT-32 | 48.0% | ⚠️ Poor performance |
 
+The 8 most frequent miss classified images are show in figure below:
+
+<img width="1578" height="789" alt="most_freq_err" src="https://github.com/user-attachments/assets/98cbd3ae-fe5c-4571-af78-73aafe1a3dd1" />
 
 
