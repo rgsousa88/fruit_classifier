@@ -1,5 +1,9 @@
 ## Introduction
 
+In this repository, I'm sharing some experiments with Fruit Dataset (https://www.kaggle.com/datasets/utkarshsaxenadn/fruits-classification).
+
+My intention is playing around with Transformers architectures and compare their performances compared with classical CNN models.
+
 In this branch, was compared the models performance using fixed hyperparameters (which can found at config.json). 
 
 The architectures supported are:
