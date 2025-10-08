@@ -105,7 +105,7 @@ class TrainHelper:
         self.scheduler = get_scheduler(sched_name=config['scheduler'], optimizer=self.optimizer, **scheduler_config)
         
         self.evalFunc = evalFunc
-        self.checkpoint_path = ".\\checkpoint"
+        self.checkpoint_path = "checkpoint"
         os.makedirs(self.checkpoint_path, exist_ok=True)
 
     def set_device(self,use_gpu=False):
