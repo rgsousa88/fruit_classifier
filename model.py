@@ -9,7 +9,7 @@ import math
 
 from posencoding import *
 
-def model_factory(model_name:str, num_classes:int, petrained=True):
+def model_factory(model_name:str, num_classes:int, pretrained=True):
     supported_models = ['resnet50', 'resnet18',
                         'mobilenet_v3_large', 'mobilenet_v3_small',
                         'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2',
@@ -23,7 +23,7 @@ def model_factory(model_name:str, num_classes:int, petrained=True):
     if model_name == 'custom_ViT_PositionalEncoding':
         model = ViTWithComplexPositionalEncoding(image_size=224, num_classes=num_classes, dim=512)
     else:
-        weights = 'DEFAULT' if petrained else None
+        weights = 'DEFAULT' if pretrained else None
         model = models.get_model(model_name, weights=weights)
     
     if 'resnet' in model_name:

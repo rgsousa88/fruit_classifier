@@ -168,3 +168,9 @@ class TrainHelper:
 
         torch.save(checkpoint, fullPath)
         print(f"Checkpoint salvo: {fullPath}")
+
+    def loadModel(self, checkpoint):
+        if self.config['model'] in checkpoint:
+            state_dict = torch.load(checkpoint)
+            self.model.load_state_dict(state_dict['model_state_dict'], strict=False)
+            self.optimizer.load_state_dict(state_dict['optimizer_state_dict'])

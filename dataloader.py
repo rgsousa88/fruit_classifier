@@ -27,6 +27,17 @@ def get_data_loaders(basePath, input_size:int = 224, batch_size: int = 5):
 
     return trainLoader, validLoader
 
+def get_data_loader_eval(basePath, mode:str = "valid", input_size:int = 224, batch_size: int = 5):
+    if not mode in ["valid", "test"]:
+        raise Exception("Invalid mode")
+    
+    basePathVal = os.path.join(basePath, mode)
+    evalDataset = FruitDatasetEval(basePathVal, size=(input_size,input_size))
+    evalLoader = DataLoader(evalDataset, batch_size=batch_size, shuffle=False)
+
+    return evalLoader
+    
+
 class FruitDataset(Dataset):
     def __init__(self, path, size=(256, 256), transform:list = None):
         super().__init__()
@@ -61,3 +72,18 @@ class FruitDataset(Dataset):
         imgTensor = self.transform(imgTensor)
 
         return imgTensor, label
+    
+class FruitDatasetEval(FruitDataset):
+    def __init__(self, path, size=(224,224)):
+        super().__init__(path=path, size=size, transform=None)
+    
+    def __getitem__(self, idx):
+        imgPath = self.fileNames[idx]
+        label = self.labels[idx]
+        
+        imgTensor = cv2.imread(imgPath)
+        imgTensor = cv2.cvtColor(imgTensor,cv2.COLOR_BGR2RGB)
+        
+        imgTensor = self.transform(imgTensor)
+
+        return imgTensor, label, imgPath
