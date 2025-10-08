@@ -1,0 +1,9 @@
+matplotlib
+matplotlib-inline
+numpy
+opencv-python
+torch
+torchinfo
+torchvision
+tornado
+tqdm
