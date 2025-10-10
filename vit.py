@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 class AttetionHead(nn.Module):
     def __init__(self, dim:int = 64, input_dim:int=512):
@@ -94,7 +95,7 @@ class VisionTransformer(nn.Module):
     def encoding_patch(self, x):
         return self.input_embedding(x) + self.pos_embedding
     
-    def foward(self, x):
+    def forward(self, x):
         patches = self.split_in_patches(x)
         input_enc = torch.stack([self.encoding_patch(patches[:,:,:,:,i]) for i in range(self.n_patches)], dim=1)
         output_enc = self.encoder(input_enc)
