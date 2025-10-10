@@ -51,15 +51,15 @@ class EncoderLayer(nn.Module):
                                          nn.Linear(in_features=self.hidden_dim, out_features=self.input_dim),
                                          nn.ReLU())
         
-        def forward(x, self):
-            x = x.squeeze()
-            att_out = torch.concatenate([self.att_layers[i](x) for i in range(self.n_heads)], dim=2)
-            y = att_out + x
-            y = self.norm_block_1(y)
-            y = self.feed_foward(y) + y
-            y = self.norm_block_2(y)
+    def forward(x, self):
+        x = x.squeeze()
+        att_out = torch.concatenate([self.att_layers[i](x) for i in range(self.n_heads)], dim=2)
+        y = att_out + x
+        y = self.norm_block_1(y)
+        y = self.feed_foward(y) + y
+        y = self.norm_block_2(y)
 
-            return y
+        return y
         
 class VisionTransformer(nn.Module):
     def __init__(self, n_patches:int = 16, n_head_att:int = 8, input_dim:int = 512, hidden_dim:int=2048):
