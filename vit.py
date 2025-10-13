@@ -51,23 +51,35 @@ class EncoderLayer(nn.Module):
         self.norm_block_2 = NormBlock()
 
         self.feed_foward = nn.Sequential(nn.Linear(in_features=self.input_dim, out_features=self.hidden_dim),
-                                         nn.ReLU(),
+                                         nn.GELU(),
                                          nn.Linear(in_features=self.hidden_dim, out_features=self.input_dim),
-                                         nn.ReLU())
+                                         nn.GELU())
         
     def forward(self, x):
-        att_out = torch.concatenate([self.att_layers[i](x) for i in range(self.n_heads)], dim=2)
-        y = att_out.reshape(x.shape) + x
-        b,p,dim,_,_ = y.shape
-        y = torch.reshape(y,(b,p,dim))
-        y = self.norm_block_1(y)
-        y = self.feed_foward(y) + y
-        y = self.norm_block_2(y)
+        # Norm inputs
+        x_norm = self.norm_block_1(x)
+        
+        # Pass inputs to multi-head attention
+        att_out = torch.concatenate([self.att_layers[i](x_norm) for i in range(self.n_heads)], dim=2)
+        
+        # Add inputs to multi-head attention output = inputs_1
+        x1 = att_out.reshape(x.shape) + x
+        
+        # Norm inputs_1
+        x1_norm = self.norm_block_2(x1)
+        
+        # MLP 
+        b,p,dim,_,_ = x1_norm.shape
+        x1_norm = torch.reshape(x1_norm, (b,p,dim))
+        y = self.feed_foward(x1_norm)
+        
+        # Add MLP output to inputs_1
+        y = y.reshape(x1.shape) + x1
 
         return y
         
 class VisionTransformer(nn.Module):
-    def __init__(self, n_patches:int = 16, n_head_att:int = 8, input_dim:int = 512, hidden_dim:int=2048):
+    def __init__(self, n_patches:int = 64, n_head_att:int = 8, input_dim:int = 512, hidden_dim:int=2048):
         super().__init__()
         self.n_heads = n_head_att
         self.dim = input_dim
@@ -100,7 +112,9 @@ class VisionTransformer(nn.Module):
         patch_h = h // self.patche_per_dim
         patch_w = w // self.patche_per_dim
 
-        patches = x.view(b,c,patch_h,patch_w,-1)
+        patches = torch.stack([split for h_split in x.split(patch_h,2) for split in h_split.split(patch_w,3)])
+        patches = torch.transpose(patches,0,1)
+
         return patches
     
     def encoding_patch(self, x):
@@ -108,14 +122,26 @@ class VisionTransformer(nn.Module):
         return embedding
     
     def forward(self, x):
+        n_batches = x.shape[0]
+        
+        # Input Patches spliting
         patches = self.split_in_patches(x)
-        input_enc = torch.stack([self.encoding_patch(patches[:,:,:,:,i]) for i in range(self.n_patches)], dim=1)
-        b  = input_enc.shape[0]
-        input_enc = torch.cat((self.class_token.repeat(b,1,1,1,1), input_enc), dim=1)
+
+        # Patches encoding
+        input_enc = torch.stack([self.encoding_patch(patches[i]) for i in range(n_batches)], dim=0)
+
+        # Appending Class Token
+        class_token = self.class_token.repeat(n_batches,1,1,1,1)
+        input_enc = torch.cat((class_token, input_enc), dim=1)
+
+        # Adding Pos. Embedding
         input_enc = input_enc + self.pos_embedding
+
+        #Normalizing Encoder Input
         input_enc_norm = self.input_norm_1(input_enc)
+
+        #Encoding with MHA
         output_enc = self.encoder(input_enc_norm)
-        output_enc = output_enc.reshape(input_enc.shape) + input_enc
 
         return output_enc
     
@@ -140,7 +166,10 @@ class ViTClassifier(nn.Module):
                                         nn.Linear(in_features=self.emb_dim//2, out_features=n_classes))
         
     def forward(self, x):
+        # Passing through Transformer encoding
         x_encod = self.vit(x)
+
+        #Performing classification with all token
         y = self.classifier(x_encod)
 
         return y
