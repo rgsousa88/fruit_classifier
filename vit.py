@@ -83,10 +83,12 @@ class VisionTransformer(nn.Module):
                                              nn.Conv2d(64,self.dim,kernel_size=1),
                                              nn.ReLU(),
                                              nn.AdaptiveAvgPool2d(output_size=(1,1)))
+
+        self.input_norm_1 = NormBlock()
         
-        #self.class_token = nn.Parameter(torch.rand(self.dim,1,1))
+        self.class_token = nn.Parameter(torch.rand(1,1,self.dim,1,1))
         
-        self.pos_embedding = nn.Parameter(torch.rand(self.n_patches,self.dim,1,1))
+        self.pos_embedding = nn.Parameter(torch.rand(self.n_patches+1,self.dim,1,1))
 
         self.encoder = EncoderLayer(n_head_att=self.n_heads,
                                     input_dim=self.dim,
@@ -101,14 +103,19 @@ class VisionTransformer(nn.Module):
         patches = x.view(b,c,patch_h,patch_w,-1)
         return patches
     
-    def encoding_patch(self, x, pos):
-        embedding = self.input_embedding(x) + pos
+    def encoding_patch(self, x):
+        embedding = self.input_embedding(x)
         return embedding
     
     def forward(self, x):
         patches = self.split_in_patches(x)
-        input_enc = torch.stack([self.encoding_patch(patches[:,:,:,:,i], self.pos_embedding[i]) for i in range(self.n_patches)], dim=1)
-        output_enc = self.encoder(input_enc)
+        input_enc = torch.stack([self.encoding_patch(patches[:,:,:,:,i]) for i in range(self.n_patches)], dim=1)
+        b  = input_enc.shape[0]
+        input_enc = torch.cat((self.class_token.repeat(b,1,1,1,1), input_enc), dim=1)
+        input_enc = input_enc + self.pos_embedding
+        input_enc_norm = self.input_norm_1(input_enc)
+        output_enc = self.encoder(input_enc_norm)
+        output_enc = output_enc.reshape(input_enc.shape) + input_enc
 
         return output_enc
     
@@ -119,7 +126,7 @@ class ViTClassifier(nn.Module):
         self.input_size = input_size
         self.n_patches = n_patches
         self.emb_dim = emb_dim
-        self.flatten_size = self.n_patches * self.emb_dim
+        self.flatten_size = (1 + self.n_patches) * self.emb_dim
         
         assert self.input_size % int(math.sqrt(n_patches)) == 0
 
