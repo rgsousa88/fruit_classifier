@@ -15,13 +15,16 @@ class AttetionHead(nn.Module):
         self.Wv = nn.Parameter(torch.rand(input_dim, dim), requires_grad=True)
 
     def forward(self, x):
+        b,p,dim,_,_ = x.shape
+        x = torch.reshape(x,(b,p,dim))
+        
         Q = torch.matmul(x, self.Wq)
         K = torch.matmul(x, self.Wk)
         V = torch.matmul(x, self.Wv)
-
+        
         V_proj = self.scale * torch.matmul(Q, torch.transpose(K,1,2))
         att = torch.matmul(V_proj.softmax(dim=0), V)
-
+        
         return att
     
 class NormBlock(nn.Module):
@@ -52,10 +55,11 @@ class EncoderLayer(nn.Module):
                                          nn.Linear(in_features=self.hidden_dim, out_features=self.input_dim),
                                          nn.ReLU())
         
-    def forward(x, self):
-        x = x.squeeze()
+    def forward(self, x):
         att_out = torch.concatenate([self.att_layers[i](x) for i in range(self.n_heads)], dim=2)
-        y = att_out + x
+        y = att_out.reshape(x.shape) + x
+        b,p,dim,_,_ = y.shape
+        y = torch.reshape(y,(b,p,dim))
         y = self.norm_block_1(y)
         y = self.feed_foward(y) + y
         y = self.norm_block_2(y)
@@ -72,12 +76,17 @@ class VisionTransformer(nn.Module):
         self.ff_hidden_dim = hidden_dim
         self.patche_per_dim = int(math.sqrt(self.n_patches))
 
-        self.input_embedding = nn.Sequential(nn.Conv2d(3, 16, kernel_size=3),
+        self.input_embedding = nn.Sequential(nn.Conv2d(3,16, kernel_size=3),
+                                             nn.ReLU(),
                                              nn.Conv2d(16,64, kernel_size=3),
+                                             nn.ReLU(),
                                              nn.Conv2d(64,self.dim,kernel_size=1),
+                                             nn.ReLU(),
                                              nn.AdaptiveAvgPool2d(output_size=(1,1)))
         
-        self.pos_embedding = nn.Parameter(torch.rand(self.dim,1,1))
+        #self.class_token = nn.Parameter(torch.rand(self.dim,1,1))
+        
+        self.pos_embedding = nn.Parameter(torch.rand(self.n_patches,self.dim,1,1))
 
         self.encoder = EncoderLayer(n_head_att=self.n_heads,
                                     input_dim=self.dim,
@@ -89,15 +98,16 @@ class VisionTransformer(nn.Module):
         patch_h = h // self.patche_per_dim
         patch_w = w // self.patche_per_dim
 
-        patches = x.view(b,c,patch_h, patch_w,-1)
+        patches = x.view(b,c,patch_h,patch_w,-1)
         return patches
     
-    def encoding_patch(self, x):
-        return self.input_embedding(x) + self.pos_embedding
+    def encoding_patch(self, x, pos):
+        embedding = self.input_embedding(x) + pos
+        return embedding
     
     def forward(self, x):
         patches = self.split_in_patches(x)
-        input_enc = torch.stack([self.encoding_patch(patches[:,:,:,:,i]) for i in range(self.n_patches)], dim=1)
+        input_enc = torch.stack([self.encoding_patch(patches[:,:,:,:,i], self.pos_embedding[i]) for i in range(self.n_patches)], dim=1)
         output_enc = self.encoder(input_enc)
 
         return output_enc
