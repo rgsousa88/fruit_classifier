@@ -8,6 +8,7 @@ from typing import Tuple, Optional
 import math
 
 from posencoding import *
+from vit import ViTClassifier
 
 def model_factory(model_name:str, num_classes:int, pretrained=True):
     supported_models = ['resnet50', 'resnet18',
@@ -15,13 +16,13 @@ def model_factory(model_name:str, num_classes:int, pretrained=True):
                         'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2',
                         'vit_b_16','vit_b_32',
                         'swin_t','swin_b', 'swin_v2_t','swin_v2_s',
-                        'custom_ViT_PositionalEncoding']
+                        'custom_vit']
     
     if not model_name in supported_models:
         raise Exception("Invalid model name {model_name}")
     
-    if model_name == 'custom_ViT_PositionalEncoding':
-        model = ViTWithComplexPositionalEncoding(image_size=224, num_classes=num_classes, dim=512)
+    if model_name == 'custom_vit':
+        model = ViTClassifier(input_size=224, n_classes=num_classes, emb_dim=512)
     else:
         weights = 'DEFAULT' if pretrained else None
         model = models.get_model(model_name, weights=weights)
